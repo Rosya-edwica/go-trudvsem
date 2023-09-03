@@ -38,18 +38,42 @@ func buildPatternInsertValues(valuesCount int) (pattern string) {
 }
 
 func (d *Database) SaveManyVacancies(vacancies []models.Vacancy) {
-	if len(vacancies) == 0 { return }
-	query := "INSERT IGNORE INTO h_vacancy (id, url, name, city_id, position_id, prof_areas, specs, experience, salary_from, salary_to, key_skills, vacancy_date, platform) VALUES "
-	vals := []interface{}{}
-
-	for _, v := range vacancies {
-		query += "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
-		vals = append(vals, v.Id, v.Url, v.Title, v.CityId, v.ProfessionId, v.ProfAreas, v.Specializations, v.Experience, v.SalaryFrom, v.SalaryTo, v.Skills, v.DateUpdate, "trudvsem")
+	groups := groupVacancies(vacancies)
+	for _, group := range groups {
+		d.SaveVacancies(group)
 	}
-	query = query[0:len(query)-1]
+}
+
+func (d *Database) SaveVacancies(vacancies []models.Vacancy) {
+	if len(vacancies) == 0 { return }
+	query, vals := createQueryForMultipleInsertVacanciesMYSQL(vacancies)
 	tx, _ := d.Connection.Begin()
 	_, err := d.Connection.Exec(query, vals...)
 	checkErr(err)
 	tx.Commit()
 	fmt.Printf("Успешко сохранили %d вакансий \n", len(vacancies))
+}
+
+
+func groupVacancies(vacancies []models.Vacancy) (groups [][]models.Vacancy) {
+	LIMIT := 2000
+	for i := 0; i < len(vacancies); i += LIMIT {
+		group := vacancies[i:]
+		if len(group) >= 2000 {
+			group = group[:LIMIT]
+		}
+		groups = append(groups, group)
+	}
+	return
+}
+
+func createQueryForMultipleInsertVacanciesMYSQL(vacancies []models.Vacancy) (query string, valArgs []interface{}) {
+	query = "INSERT IGNORE INTO h_vacancy (id, name, url, city_id, position_id, prof_areas, specs, experience, salary_from, salary_to, key_skills, vacancy_date, platform) VALUES "
+	for _, v := range vacancies {
+		query += "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
+		valArgs = append(valArgs,  v.Id, v.Title, v.Url, v.CityId, v.ProfessionId, v.ProfAreas, v.Specializations, v.Experience, v.SalaryFrom, v.SalaryTo, v.Skills, v.DateUpdate, "trudvsem")
+	}
+	query = query[0:len(query)-1]
+	query = strings.TrimSpace(query)
+	return
 }

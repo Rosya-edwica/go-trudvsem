@@ -14,7 +14,7 @@ import (
 func initDatabase() (database *db.Database) {
 	err := godotenv.Load(".env")
 	if err != nil {
-		fmt.Println("Создайте файл с переменными окружения .env")
+		panic("Создайте файл с переменными окружения .env")
 	}
 
 	database = &db.Database{
